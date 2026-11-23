@@ -30,15 +30,22 @@ public class DockerService
     public async Task<string> CrearContenedorAsync(
     Guid idServidor,
     string nombreContenedor,
+    string imagen,
     int puertoHost,
     string rutaDatos,
     string rutaConfiguracion)
     {
         var parametros = new CreateContainerParameters
         {
-            Image = "terraria-hosting:1.4.5.8",
+            Image = imagen,
 
             Name = nombreContenedor,
+
+            Cmd = new List<string>
+            {
+                "-config",
+                "/opt/terraria/serverconfig.txt"
+            },
 
             ExposedPorts = new Dictionary<string, EmptyStruct>
             {

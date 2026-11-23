@@ -3,6 +3,7 @@ using Docker.DotNet;
 using Hosting.Api.Auth;
 using Hosting.Api.Data;
 using Hosting.Api.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OAuth;
@@ -24,14 +25,28 @@ builder.Services.AddSingleton<IDockerClient>(_ =>
     ).CreateClient()
 );
 
+var rutaClaves = builder.Configuration["Hosting:DataProtectionKeys"]
+    ?? throw new InvalidOperationException(
+        "No se configuró Hosting:DataProtectionKeys."
+    );
+
+Directory.CreateDirectory(rutaClaves);
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(rutaClaves))
+    .SetApplicationName("Hosting");
+
 builder.Services.AddSingleton<DockerService>();
 
 builder.Services.AddScoped<ServidorService>();
+builder.Services.AddScoped<PuertoService>();
 
 builder.Services.AddScoped<AuthService>();
 
 builder.Services.AddSingleton<ConfiguracionTerrariaService>();
+builder.Services.AddSingleton<ProteccionContrasenaService>();
 
+// Agrega los servicios al contenedor.
 // ---------------------------------------------------------------------------
 // CORS: permite al frontend (React/Vite) llamar a la API con cookies.
 // ---------------------------------------------------------------------------
@@ -226,7 +241,7 @@ if (app.Environment.IsDevelopment())
     }
 }
 
-// Inicializar los datos de la base de datos
+// Inicializa los datos de la base de datos
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider

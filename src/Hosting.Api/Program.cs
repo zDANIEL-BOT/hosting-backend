@@ -2,6 +2,7 @@ using Hosting.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Docker.DotNet;
 using Hosting.Api.Services;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,13 +18,25 @@ builder.Services.AddSingleton<IDockerClient>(_ =>
     ).CreateClient()
 );
 
+var rutaClaves = builder.Configuration["Hosting:DataProtectionKeys"]
+    ?? throw new InvalidOperationException(
+        "No se configuró Hosting:DataProtectionKeys."
+    );
+
+Directory.CreateDirectory(rutaClaves);
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(rutaClaves))
+    .SetApplicationName("Hosting");
+
 builder.Services.AddSingleton<DockerService>();
 
 builder.Services.AddScoped<ServidorService>();
-
+builder.Services.AddScoped<PuertoService>();
 builder.Services.AddSingleton<ConfiguracionTerrariaService>();
+builder.Services.AddSingleton<ProteccionContrasenaService>();
 
-// Add services to the container.
+// Agrega los servicios al contenedor.
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
@@ -54,7 +67,7 @@ if (app.Environment.IsDevelopment())
     }
 }
 
-// Inicializar los datos de la base de datos
+// Inicializa los datos de la base de datos
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider
@@ -63,7 +76,6 @@ using (var scope = app.Services.CreateScope())
     await DatabaseSeeder.InitializeAsync(context);
 }
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();

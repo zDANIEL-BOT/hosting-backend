@@ -3,10 +3,12 @@ using Docker.DotNet;
 using Hosting.Api.Auth;
 using Hosting.Api.Data;
 using Hosting.Api.Services;
+using Hosting.Api.Entities;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OAuth;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -45,6 +47,9 @@ builder.Services.AddScoped<AuthService>();
 
 builder.Services.AddSingleton<ConfiguracionTerrariaService>();
 builder.Services.AddSingleton<ProteccionContrasenaService>();
+
+builder.Services.AddScoped<AutenticacionLocalService>();
+builder.Services.AddScoped<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>();
 
 // Agrega los servicios al contenedor.
 // ---------------------------------------------------------------------------

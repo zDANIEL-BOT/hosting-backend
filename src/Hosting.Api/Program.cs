@@ -248,14 +248,29 @@ if (app.Environment.IsDevelopment())
 
 // Inicializa los datos de la base de datos
 // Aplica las migraciones pendientes e inicializa los datos
-using (var scope = app.Services.CreateScope())
+// Controla la ejecución de migraciones según la configuración.
+var migrateOnly = configuration.GetValue<bool>("Hosting:MigrateOnly");
+
+var runMigrations = migrateOnly ||
+    configuration.GetValue<bool>("Hosting:RunMigrations", true);
+
+if (runMigrations)
 {
-    var context = scope.ServiceProvider
-        .GetRequiredService<HostingDbContext>();
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider
+            .GetRequiredService<HostingDbContext>();
 
-    await context.Database.MigrateAsync();
+        await context.Database.MigrateAsync();
 
-    await DatabaseSeeder.InitializeAsync(context);
+        await DatabaseSeeder.InitializeAsync(context);
+    }
+}
+
+// El servicio migrator termina después de inicializar la base de datos.
+if (migrateOnly)
+{
+    return;
 }
 
 // Configure the HTTP request pipeline.

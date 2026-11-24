@@ -20,6 +20,23 @@ public class ServidoresController : ControllerBase
     }
 
 
+    [HttpGet]
+    public async Task<IActionResult> ObtenerServidores()
+    {
+        var idUsuarioClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(idUsuarioClaim, out Guid idUsuario))
+        {
+            return Unauthorized();
+        }
+
+        var servidores = await _servidorService.ObtenerServidoresAsync(idUsuario);
+
+        return Ok(servidores);
+    }
+
+
+
     [HttpPost]
     public async Task<IActionResult> CrearServidor(
     [FromBody] CrearServidorDTO solicitud)

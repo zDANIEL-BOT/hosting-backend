@@ -503,4 +503,33 @@ public class ServidorService
 
         return (rutaDatos, rutaConfiguracion);
     }
+
+
+    public async Task<List<ServidorListadoDTO>> ObtenerServidoresAsync(Guid idUsuario)
+    {
+        return await _context.Servidores
+            .AsNoTracking()
+            .Where(s =>
+                s.IdUsuario == idUsuario &&
+                s.FechaEliminacion == null)
+            .OrderByDescending(s => s.FechaCreacion)
+            .Select(s => new ServidorListadoDTO
+            {
+                IdServidor = s.IdServidor,
+                Nombre = s.Nombre,
+                EstadoActual = s.EstadoActual,
+                FechaCreacion = s.FechaCreacion,
+
+                NombreMundo = s.Configuracion.NombreMundo,
+                TamanoMundo = s.Configuracion.TamanoMundo,
+                Dificultad = s.Configuracion.Dificultad,
+                MaxJugadores = s.Configuracion.MaxJugadores,
+
+                PuertoHost = s.Puerto.PuertoHost,
+                Protocolo = s.Puerto.Protocolo,
+
+                VersionJuego = s.VersionJuego.Version
+            })
+            .ToListAsync();
+    }
 }

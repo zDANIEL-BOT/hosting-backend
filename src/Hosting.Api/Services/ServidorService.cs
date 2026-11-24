@@ -504,6 +504,172 @@ public class ServidorService
         return (rutaDatos, rutaConfiguracion);
     }
 
+    private async Task<Servidor> ObtenerServidorPropioAsync(
+    Guid idUsuario,
+    Guid idServidor)
+    {
+        var servidor = await _context.Servidores
+            .Include(s => s.Puerto)
+            .FirstOrDefaultAsync(s =>
+                s.IdServidor == idServidor &&
+                s.IdUsuario == idUsuario &&
+                s.FechaEliminacion == null
+            );
+
+        if (servidor == null)
+            throw new KeyNotFoundException("Servidor no encontrado.");
+
+        return servidor;
+    }
+
+    private void RegistrarEvento(
+        Servidor servidor,
+        Guid idUsuario,
+        string tipoEvento,
+        string resultado)
+    {
+        _context.EventosServidores.Add(new EventoServidor
+        {
+            IdServidor = servidor.IdServidor,
+            IdUsuario = idUsuario,
+            TipoEvento = tipoEvento,
+            Resultado = resultado,
+            FechaCreacion = DateTime.UtcNow
+        });
+    }
+
+    public async Task<string> ObtenerEstadoRealAsync(
+        Guid idUsuario,
+        Guid idServidor)
+    {
+        var servidor = await ObtenerServidorPropioAsync(
+            idUsuario,
+            idServidor
+        );
+
+        if (string.IsNullOrWhiteSpace(servidor.IdContenedor))
+            return "NO_CREADO";
+
+        return await _dockerService.ObtenerEstadoContenedorAsync(
+            servidor.IdContenedor
+        );
+    }
+
+    public async Task IniciarServidorAsync(Guid idUsuario, Guid idServidor)
+    {
+        var servidor = await ObtenerServidorPropioAsync(idUsuario, idServidor);
+
+        if (string.IsNullOrWhiteSpace(servidor.IdContenedor))
+            throw new InvalidOperationException("El servidor no tiene un contenedor.");
+
+        string estado = await _dockerService.ObtenerEstadoContenedorAsync(
+            servidor.IdContenedor
+        );
+
+        if (estado != "RUNNING")
+        {
+            bool iniciado = await _dockerService.IniciarContenedorAsync(
+                servidor.IdContenedor
+            );
+
+            if (!iniciado)
+                throw new InvalidOperationException("No se pudo iniciar el servidor.");
+        }
+
+        servidor.EstadoDeseado = "ENCENDIDO";
+        servidor.EstadoActual = "ENCENDIDO";
+        servidor.FechaActualizacion = DateTime.UtcNow;
+
+        RegistrarEvento(servidor, idUsuario, "INICIAR", "EXITOSO");
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task DetenerServidorAsync(Guid idUsuario, Guid idServidor)
+    {
+        var servidor = await ObtenerServidorPropioAsync(idUsuario, idServidor);
+
+        if (string.IsNullOrWhiteSpace(servidor.IdContenedor))
+            throw new InvalidOperationException("El servidor no tiene un contenedor.");
+
+        string estado = await _dockerService.ObtenerEstadoContenedorAsync(
+            servidor.IdContenedor
+        );
+
+        if (estado == "RUNNING")
+            await _dockerService.DetenerContenedorAsync(servidor.IdContenedor);
+
+        servidor.EstadoDeseado = "APAGADO";
+        servidor.EstadoActual = "APAGADO";
+        servidor.FechaActualizacion = DateTime.UtcNow;
+
+        RegistrarEvento(servidor, idUsuario, "DETENER", "EXITOSO");
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task ReiniciarServidorAsync(Guid idUsuario, Guid idServidor)
+    {
+        var servidor = await ObtenerServidorPropioAsync(idUsuario, idServidor);
+
+        if (string.IsNullOrWhiteSpace(servidor.IdContenedor))
+            throw new InvalidOperationException("El servidor no tiene un contenedor.");
+
+        await _dockerService.ReiniciarContenedorAsync(servidor.IdContenedor);
+
+        servidor.EstadoDeseado = "ENCENDIDO";
+        servidor.EstadoActual = "ENCENDIDO";
+        servidor.FechaActualizacion = DateTime.UtcNow;
+
+        RegistrarEvento(servidor, idUsuario, "REINICIAR", "EXITOSO");
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task EliminarServidorAsync(Guid idUsuario, Guid idServidor)
+    {
+        var servidor = await ObtenerServidorPropioAsync(idUsuario, idServidor);
+
+        if (!string.IsNullOrWhiteSpace(servidor.IdContenedor))
+        {
+            string estado = await _dockerService.ObtenerEstadoContenedorAsync(
+                servidor.IdContenedor
+            );
+
+            if (estado == "RUNNING")
+                await _dockerService.DetenerContenedorAsync(servidor.IdContenedor);
+
+            await _dockerService.EliminarContenedorAsync(servidor.IdContenedor);
+        }
+
+        servidor.EstadoDeseado = "ELIMINADO";
+        servidor.EstadoActual = "ELIMINADO";
+        servidor.FechaEliminacion = DateTime.UtcNow;
+        servidor.FechaActualizacion = DateTime.UtcNow;
+
+        if (servidor.Puerto != null)
+            servidor.Puerto.Activo = false;
+
+        RegistrarEvento(servidor, idUsuario, "ELIMINAR", "EXITOSO");
+
+        await _context.SaveChangesAsync();
+
+        string rutaServidor = ObtenerRutaServidor(idServidor);
+
+        try
+        {
+            if (Directory.Exists(rutaServidor))
+                Directory.Delete(rutaServidor, true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "No se pudo eliminar el almacenamiento del servidor {IdServidor}.",
+                idServidor
+            );
+        }
+    }
 
     public async Task<List<ServidorListadoDTO>> ObtenerServidoresAsync(Guid idUsuario)
     {

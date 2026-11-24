@@ -27,6 +27,16 @@ public class DockerService
         );
     }
 
+    public async Task<string> ObtenerEstadoContenedorAsync(string idContenedor)
+    {
+        var contenedor = await _dockerClient.Containers.InspectContainerAsync(
+            idContenedor
+        );
+
+        return contenedor.State?.Status?.ToUpperInvariant()
+            ?? "DESCONOCIDO";
+    }
+
     public async Task<string> CrearContenedorAsync(
     Guid idServidor,
     string nombreContenedor,

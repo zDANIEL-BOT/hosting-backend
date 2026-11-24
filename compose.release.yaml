@@ -1,0 +1,162 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: hosting-release-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_release_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - hosting-release-network
+
+  migrator:
+    image: zdanielxbot/hosting-api:1.0.1
+    container_name: hosting-release-migrator
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Hosting__StorageRoot: ${HOST_STORAGE_ROOT}
+      Hosting__DataProtectionKeys: ${HOST_DATA_PROTECTION}
+      Hosting__MigrateOnly: "true"
+    volumes:
+      - ${HOST_STORAGE_ROOT}:${HOST_STORAGE_ROOT}
+      - ${HOST_DATA_PROTECTION}:${HOST_DATA_PROTECTION}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - hosting-release-network
+
+  backend1:
+    image: zdanielxbot/hosting-api:1.0.1
+    container_name: hosting-release-backend-1
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Hosting__StorageRoot: ${HOST_STORAGE_ROOT}
+      Hosting__DataProtectionKeys: ${HOST_DATA_PROTECTION}
+      Hosting__RunMigrations: "false"
+    ports:
+      - "5001:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOST_STORAGE_ROOT}:${HOST_STORAGE_ROOT}
+      - ${HOST_DATA_PROTECTION}:${HOST_DATA_PROTECTION}
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - hosting-release-network
+
+  backend2:
+    image: zdanielxbot/hosting-api:1.0.1
+    container_name: hosting-release-backend-2
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Hosting__StorageRoot: ${HOST_STORAGE_ROOT}
+      Hosting__DataProtectionKeys: ${HOST_DATA_PROTECTION}
+      Hosting__RunMigrations: "false"
+    ports:
+      - "5002:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOST_STORAGE_ROOT}:${HOST_STORAGE_ROOT}
+      - ${HOST_DATA_PROTECTION}:${HOST_DATA_PROTECTION}
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - hosting-release-network
+
+  backend3:
+    image: zdanielxbot/hosting-api:1.0.1
+    container_name: hosting-release-backend-3
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Hosting__StorageRoot: ${HOST_STORAGE_ROOT}
+      Hosting__DataProtectionKeys: ${HOST_DATA_PROTECTION}
+      Hosting__RunMigrations: "false"
+    ports:
+      - "5003:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOST_STORAGE_ROOT}:${HOST_STORAGE_ROOT}
+      - ${HOST_DATA_PROTECTION}:${HOST_DATA_PROTECTION}
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - hosting-release-network
+
+  backend4:
+    image: zdanielxbot/hosting-api:1.0.1
+    container_name: hosting-release-backend-4
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Hosting__StorageRoot: ${HOST_STORAGE_ROOT}
+      Hosting__DataProtectionKeys: ${HOST_DATA_PROTECTION}
+      Hosting__RunMigrations: "false"
+    ports:
+      - "5004:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOST_STORAGE_ROOT}:${HOST_STORAGE_ROOT}
+      - ${HOST_DATA_PROTECTION}:${HOST_DATA_PROTECTION}
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - hosting-release-network
+
+  frontend:
+    build:
+      context: ../hosting-frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:5001
+    container_name: hosting-release-frontend
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend1
+    networks:
+      - hosting-release-network
+
+networks:
+  hosting-release-network:
+    driver: bridge
+
+volumes:
+  postgres_release_data:

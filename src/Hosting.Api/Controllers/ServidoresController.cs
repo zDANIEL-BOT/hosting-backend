@@ -82,4 +82,117 @@ public class ServidoresController : ControllerBase
             });
         }
     }
+
+    private Guid? ObtenerIdUsuario()
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(claim, out Guid idUsuario)
+            ? idUsuario
+            : null;
+    }
+
+    [HttpGet("{idServidor:guid}/estado")]
+    public async Task<IActionResult> ObtenerEstado(Guid idServidor)
+    {
+        var idUsuario = ObtenerIdUsuario();
+        if (idUsuario == null) return Unauthorized();
+
+        try
+        {
+            var estado = await _servidorService.ObtenerEstadoRealAsync(
+                idUsuario.Value, idServidor
+            );
+
+            return Ok(new { Estado = estado });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { Mensaje = ex.Message });
+        }
+    }
+
+    [HttpPost("{idServidor:guid}/iniciar")]
+    public async Task<IActionResult> Iniciar(Guid idServidor)
+    {
+        var idUsuario = ObtenerIdUsuario();
+        if (idUsuario == null) return Unauthorized();
+
+        try
+        {
+            await _servidorService.IniciarServidorAsync(idUsuario.Value, idServidor);
+            return Ok(new { Mensaje = "Servidor iniciado correctamente." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { Mensaje = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Mensaje = ex.Message });
+        }
+    }
+
+    [HttpPost("{idServidor:guid}/detener")]
+    public async Task<IActionResult> Detener(Guid idServidor)
+    {
+        var idUsuario = ObtenerIdUsuario();
+        if (idUsuario == null) return Unauthorized();
+
+        try
+        {
+            await _servidorService.DetenerServidorAsync(idUsuario.Value, idServidor);
+            return Ok(new { Mensaje = "Servidor detenido correctamente." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { Mensaje = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Mensaje = ex.Message });
+        }
+    }
+
+    [HttpPost("{idServidor:guid}/reiniciar")]
+    public async Task<IActionResult> Reiniciar(Guid idServidor)
+    {
+        var idUsuario = ObtenerIdUsuario();
+        if (idUsuario == null) return Unauthorized();
+
+        try
+        {
+            await _servidorService.ReiniciarServidorAsync(idUsuario.Value, idServidor);
+            return Ok(new { Mensaje = "Servidor reiniciado correctamente." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { Mensaje = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Mensaje = ex.Message });
+        }
+    }
+
+    [HttpDelete("{idServidor:guid}")]
+    public async Task<IActionResult> Eliminar(Guid idServidor)
+    {
+        var idUsuario = ObtenerIdUsuario();
+        if (idUsuario == null) return Unauthorized();
+
+        try
+        {
+            await _servidorService.EliminarServidorAsync(idUsuario.Value, idServidor);
+            return Ok(new { Mensaje = "Servidor eliminado correctamente." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { Mensaje = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Mensaje = ex.Message });
+        }
+    }
 }

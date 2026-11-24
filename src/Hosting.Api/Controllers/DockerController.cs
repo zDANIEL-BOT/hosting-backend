@@ -1,10 +1,12 @@
 using Hosting.Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Hosting.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class DockerController : ControllerBase
 {
     private readonly DockerService _dockerService;

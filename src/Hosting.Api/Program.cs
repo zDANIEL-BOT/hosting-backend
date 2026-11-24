@@ -247,10 +247,13 @@ if (app.Environment.IsDevelopment())
 }
 
 // Inicializa los datos de la base de datos
+// Aplica las migraciones pendientes e inicializa los datos
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider
         .GetRequiredService<HostingDbContext>();
+
+    await context.Database.MigrateAsync();
 
     await DatabaseSeeder.InitializeAsync(context);
 }

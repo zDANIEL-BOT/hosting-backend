@@ -1,12 +1,15 @@
-
 using Hosting.Api.DTOs;
 using Hosting.Api.Services;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Hosting.Api.Controllers;
 
+
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class ServidoresController : ControllerBase
 {
     private readonly ServidorService _servidorService;
@@ -19,15 +22,19 @@ public class ServidoresController : ControllerBase
 
     [HttpPost]
     public async Task<IActionResult> CrearServidor(
-        [FromBody] CrearServidorDTO solicitud)
+    [FromBody] CrearServidorDTO solicitud)
     {
         try
         {
-            // Temporalmente utilizamos un usuario existente.
-            // Después obtendremos este identificador desde el JWT.
-            Guid idUsuario = Guid.Parse(
-                "68445ede-7bd4-4a1f-b80c-2a697c93bfd5"
+            // Obtener el ID del usuario desde los claims de autenticación.
+            var idUsuarioClaim = User.FindFirstValue(
+                ClaimTypes.NameIdentifier
             );
+
+            if (!Guid.TryParse(idUsuarioClaim, out Guid idUsuario))
+            {
+                return Unauthorized();
+            }
 
             Guid idServidor = await _servidorService.CrearServidorAsync(
                 idUsuario,
